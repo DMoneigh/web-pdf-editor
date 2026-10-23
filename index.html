@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PDF Studio — edit, draw, replace images & extract data</title>
+    <meta name="description" content="A private, in-browser PDF editor: edit text, draw, replace images and extract text, tables and metadata." />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%236366f1'/%3E%3Cpath d='M10 7h8l5 5v13H10z' fill='white'/%3E%3Cpath d='M13 18l6-6 2 2-6 6h-2z' fill='%236366f1'/%3E%3C/svg%3E" />
+    <link rel="modulepreload" href="vendor/pdfjs/pdf.min.js" />
+    <link rel="modulepreload" href="vendor/pdf-lib/pdf-lib.esm.min.js" />
+    <link rel="stylesheet" href="css/app.css" />
+  </head>
+  <body class="tool-select">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" data-icon="file" data-size="18"></span>
+        <span class="brand-name">PDF Studio</span>
+      </div>
+      <button id="btnOpen" class="btn" type="button" data-icon="open" title="Open a PDF (Ctrl+O)"><span class="lbl">Open</span></button>
+      <span id="fileName" class="file-name needs-doc"></span>
+      <span class="dirty-dot needs-doc" title="Unsaved changes"></span>
+
+      <div class="spacer"></div>
+
+      <div class="group needs-doc">
+        <button id="btnUndo" class="icon-btn" type="button" data-icon="undo" title="Undo (Ctrl+Z)" aria-label="Undo"></button>
+        <button id="btnRedo" class="icon-btn" type="button" data-icon="redo" title="Redo (Ctrl+Shift+Z)" aria-label="Redo"></button>
+      </div>
+
+      <div class="group needs-doc">
+        <button id="btnZoomOut" class="icon-btn" type="button" data-icon="minus" title="Zoom out (Ctrl −)" aria-label="Zoom out"></button>
+        <select id="zoomSelect" title="Zoom" aria-label="Zoom">
+          <option value="current">100%</option>
+          <option value="width">Fit width</option>
+          <option value="page">Fit page</option>
+          <option value="0.5">50%</option>
+          <option value="0.75">75%</option>
+          <option value="1">100%</option>
+          <option value="1.25">125%</option>
+          <option value="1.5">150%</option>
+          <option value="2">200%</option>
+          <option value="3">300%</option>
+        </select>
+        <button id="btnZoomIn" class="icon-btn" type="button" data-icon="plus" title="Zoom in (Ctrl +)" aria-label="Zoom in"></button>
+      </div>
+
+      <div class="group page-nav needs-doc">
+        <button id="btnPrev" class="icon-btn chev" type="button" title="Previous page" aria-label="Previous page">‹</button>
+        <input id="pageInput" type="number" min="1" value="1" aria-label="Page number" />
+        <span id="pageCount" class="muted">/ 1</span>
+        <button id="btnNext" class="icon-btn chev" type="button" title="Next page" aria-label="Next page">›</button>
+      </div>
+
+      <div class="group">
+        <button id="btnThumbs" class="icon-btn" type="button" data-icon="thumbs" title="Toggle page thumbnails" aria-label="Toggle page thumbnails" aria-pressed="true"></button>
+        <button id="btnData" class="btn" type="button" data-icon="data" title="Show data & extraction panel" aria-pressed="false"><span class="lbl">Data</span></button>
+      </div>
+
+      <button id="btnDownload" class="btn primary needs-doc" type="button" data-icon="download" title="Download the edited PDF (Ctrl+S)"><span class="lbl">Download PDF</span></button>
+    </header>
+
+    <div id="toolOptions" class="optionsbar" aria-label="Tool options"></div>
+
+    <main class="workspace">
+      <nav id="toolRail" class="toolrail" aria-label="Tools"></nav>
+
+      <aside id="thumbs" class="thumbs" aria-label="Pages">
+        <div class="panel-head"><span>Pages</span></div>
+        <div id="thumbList" class="thumb-list"></div>
+      </aside>
+
+      <section class="frame" aria-label="Document window">
+        <div class="frame-bar">
+          <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+          <span id="frameTitle" class="frame-title">No document</span>
+          <span id="frameMeta" class="frame-meta"></span>
+        </div>
+        <div id="viewer" class="viewer">
+          <div id="dropFrame" class="dropzone" tabindex="0" role="button" aria-label="Drop a PDF here or click to browse">
+            <div class="drop-inner">
+              <div class="drop-art" aria-hidden="true">
+                <svg width="96" height="96" viewBox="0 0 96 96" fill="none">
+                  <rect x="20" y="10" width="50" height="66" rx="6" fill="#1e1b4b" stroke="#818cf8" stroke-width="2.5" />
+                  <path d="M54 10v14h16" stroke="#818cf8" stroke-width="2.5" stroke-linejoin="round" />
+                  <rect x="30" y="34" width="28" height="4" rx="2" fill="#6366f1" />
+                  <rect x="30" y="44" width="22" height="4" rx="2" fill="#4f46e5" />
+                  <rect x="30" y="54" width="25" height="4" rx="2" fill="#4338ca" />
+                  <circle cx="68" cy="70" r="16" fill="#6366f1" />
+                  <path d="M68 62v16M61 71l7 7 7-7" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" transform="rotate(180 68 70)" />
+                </svg>
+              </div>
+              <h2>Drop a PDF here</h2>
+              <p>or attach one from your computer — everything stays in your browser.</p>
+              <div class="drop-actions">
+                <button id="btnBrowse" class="btn primary" type="button" data-icon="open">Browse for a PDF</button>
+                <button id="btnSample" class="btn" type="button" data-icon="sparkle">Try a sample PDF</button>
+              </div>
+              <ul class="feature-list">
+                <li><b>Edit text</b> already in the PDF, or add new text</li>
+                <li><b>Draw</b>, highlight, add shapes, arrows &amp; whiteout</li>
+                <li><b>Replace images</b> inside the PDF, or insert new ones</li>
+                <li><b>Extract data</b> — text, tables (CSV), images, links, form fields &amp; metadata</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <aside id="dataPanel" class="datapanel" aria-label="Document data">
+        <div class="panel-head">
+          <span>Data &amp; extraction</span>
+          <div class="panel-actions">
+            <button id="btnExportJson" class="btn xs needs-doc" type="button" title="Download everything as JSON">Export JSON</button>
+            <button id="btnCloseData" class="icon-btn sm" type="button" title="Close panel" aria-label="Close panel">✕</button>
+          </div>
+        </div>
+        <div id="dpTabs" class="dp-tabs" role="tablist"></div>
+        <div id="dpBody" class="dp-body"></div>
+      </aside>
+    </main>
+
+    <div id="dragOverlay" class="drag-overlay" aria-hidden="true">
+      <div class="drag-card">
+        <strong class="drag-pdf">Drop to open the PDF</strong>
+        <span class="drag-img">PDFs open in the editor · images are placed on the page you drop them on</span>
+      </div>
+    </div>
+    <div id="busy" class="busy" role="status" aria-live="polite">
+      <div class="busy-card"><span class="spinner"></span><span id="busyText">Working…</span></div>
+    </div>
+    <div id="toasts" class="toasts" aria-live="polite"></div>
+    <div id="modal" class="modal"></div>
+    <input id="fileInput" type="file" accept="application/pdf,.pdf" hidden />
+
+    <script type="module" src="js/main.js"></script>
+  </body>
+</html>
